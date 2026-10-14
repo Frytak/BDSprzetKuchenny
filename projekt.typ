@@ -12,7 +12,7 @@
 
 #set document(
   title: [Projekt Baz Danych],
-  author: ("Piotr Niepsuj", "Gabriel Pilch"),
+  author: ("Gabriela Kłos", "Paweł Lelakowski", "Gabriel Pilch", "Piotr Niepsuj"),
   description: [Opisanie bazy danych sklepu internetowego zajmującego się sprzedażą sprzętu do kuchni],
   keywords: ("mariadb", "database", "baza danych")
 )
@@ -26,7 +26,7 @@
   #text(size: 13pt)[Bazy Danych]\
   #text(size: 11pt, style: "italic")[Projekt]
   #v(2mm)
-  #text(size: 11pt)[*Autorzy:* Piotr Niepsuj, Gabriel Pilch]
+  #text(size: 11pt)[*Autorzy:* Gabriela Kłos, Paweł Lelakowski, Gabriel Pilch, Piotr Niepsuj]
   #v(4mm)
 ]
 
