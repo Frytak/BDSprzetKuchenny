@@ -1,0 +1,194 @@
+Enum order_status_enum {
+  pending
+  paid
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+Enum payment_method_enum {
+  credit_card
+  paypal
+  bank_transfer
+  stripe
+  blik
+}
+
+Enum payment_status_enum {
+  initiated
+  completed
+  failed
+  refunded
+}
+
+Enum shipment_status_enum {
+  label_created
+  in_transit
+  out_for_delivery
+  delivered
+}
+
+Table users {
+  user_id "bigint unsigned" [pk, increment]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  phone varchar(30)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table user_sessions {
+  session_id varchar(128) [pk]
+  user_id "bigint unsigned" [not null]
+  ip_address varchar(45)
+  user_agent varchar(512)
+  is_revoked tinyint(1) [not null, default: 0]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  last_active_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  expires_at timestamp [not null]
+
+  indexes {
+    user_id [name: 'idx_sessions_user_id']
+    expires_at [name: 'idx_sessions_expires_at']
+  }
+}
+
+Table addresses {
+  address_id "bigint unsigned" [pk, increment]
+  user_id "bigint unsigned" [not null]
+  recipient_name varchar(150) [not null]
+  street_line1 varchar(255) [not null]
+  street_line2 varchar(255)
+  city varchar(100) [not null]
+  state_province varchar(100) [not null]
+  postal_code varchar(20) [not null]
+  country_code char(2) [not null, default: 'PL']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table categories {
+  category_id "int unsigned" [pk, increment]
+  parent_id "int unsigned"
+  name varchar(100) [not null]
+  slug varchar(120) [not null, unique]
+}
+
+Table products {
+  product_id "bigint unsigned" [pk, increment]
+  sku varchar(64) [not null, unique]
+  name varchar(200) [not null]
+  brand varchar(100) [not null]
+  material varchar(100)
+  description text
+  base_price decimal(10,2) [not null, note: 'CHECK (base_price > 0)']
+  is_active tinyint(1) [not null, default: 1]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    name [name: 'idx_products_name']
+    brand [name: 'idx_products_brand']
+  }
+}
+
+Table product_categories {
+  product_id "bigint unsigned" [not null]
+  category_id "int unsigned" [not null]
+
+  indexes {
+    (product_id, category_id) [pk]
+  }
+}
+
+Table warehouses {
+  warehouse_id "int unsigned" [pk, increment]
+  name varchar(100) [not null]
+  street_line1 varchar(255) [not null]
+  city varchar(100) [not null]
+  postal_code varchar(20) [not null]
+  country_code char(2) [not null, default: 'PL']
+  is_active tinyint(1) [not null, default: 1]
+}
+
+Table inventory {
+  warehouse_id "int unsigned" [not null]
+  product_id "bigint unsigned" [not null]
+  quantity int [not null, default: 0, note: 'CHECK (quantity >= 0)']
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (warehouse_id, product_id) [pk]
+  }
+}
+
+Table orders {
+  order_id "bigint unsigned" [pk, increment]
+  user_id "bigint unsigned" [not null]
+  shipping_address_id "bigint unsigned" [not null]
+  billing_address_id "bigint unsigned" [not null]
+  order_status order_status_enum [not null, default: 'pending']
+  total_amount decimal(10,2) [not null, default: 0.00, note: 'CHECK (total_amount >= 0)']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    order_status [name: 'idx_orders_status']
+    created_at [name: 'idx_orders_created_at']
+  }
+}
+
+Table order_items {
+  order_item_id "bigint unsigned" [pk, increment]
+  order_id "bigint unsigned" [not null]
+  product_id "bigint unsigned" [not null]
+  warehouse_id "int unsigned" [not null]
+  quantity "int unsigned" [not null, note: 'CHECK (quantity > 0)']
+  unit_price decimal(10,2) [not null, note: 'CHECK (unit_price >= 0)']
+
+  indexes {
+    (order_id, product_id, warehouse_id) [unique, name: 'uq_order_product_wh']
+  }
+}
+
+Table payments {
+  payment_id "bigint unsigned" [pk, increment]
+  order_id "bigint unsigned" [not null]
+  payment_method payment_method_enum [not null]
+  transaction_reference varchar(255) [not null, unique]
+  amount decimal(10,2) [not null, note: 'CHECK (amount > 0)']
+  payment_status payment_status_enum [not null, default: 'initiated']
+  paid_at timestamp
+}
+
+Table shipments {
+  shipment_id "bigint unsigned" [pk, increment]
+  order_id "bigint unsigned" [not null]
+  carrier varchar(100) [not null]
+  tracking_number varchar(150) [unique]
+  shipment_status shipment_status_enum [not null, default: 'label_created']
+  shipped_at timestamp
+  delivered_at timestamp
+}
+
+Ref authenticates: users.user_id < user_sessions.user_id [delete: cascade]
+Ref registers: users.user_id < addresses.user_id [delete: cascade]
+Ref places: users.user_id < orders.user_id [delete: restrict]
+
+Ref ships_to: addresses.address_id < orders.shipping_address_id [delete: restrict]
+Ref bills_to: addresses.address_id < orders.billing_address_id [delete: restrict]
+
+Ref subcategorizes: categories.category_id < categories.parent_id [delete: set null]
+Ref belongs_to: products.product_id < product_categories.product_id [delete: cascade]
+Ref classifies: categories.category_id < product_categories.category_id [delete: cascade]
+
+Ref stores: warehouses.warehouse_id < inventory.warehouse_id [delete: restrict]
+Ref stocked_at: products.product_id < inventory.product_id [delete: restrict]
+
+Ref contains: orders.order_id < order_items.order_id [delete: cascade]
+Ref ordered_as: products.product_id < order_items.product_id [delete: restrict]
+Ref fulfills_from: warehouses.warehouse_id < order_items.warehouse_id [delete: restrict]
+
+Ref paid_by: orders.order_id < payments.order_id [delete: restrict]
+Ref dispatched_via: orders.order_id < shipments.order_id [delete: cascade]
